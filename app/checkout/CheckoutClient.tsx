@@ -25,7 +25,46 @@ type FormValues = {
 	cvc: string;
 };
 
+type FieldKey = keyof FormValues;
+
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+function TextField(props: {
+	name: FieldKey;
+	label: string;
+	value: string;
+	error?: string;
+	type?: string;
+	inputMode?: 'text' | 'numeric' | 'tel' | 'email';
+	autoComplete?: string;
+	placeholder?: string;
+	onChange: (value: string) => void;
+}) {
+	const id = `field-${props.name}`;
+	const errorId = `error-${props.name}`;
+	return (
+		<div className="field">
+			<label htmlFor={id}>{props.label}</label>
+			<input
+				id={id}
+				name={props.name}
+				type={props.type ?? 'text'}
+				inputMode={props.inputMode}
+				autoComplete={props.autoComplete ?? 'off'}
+				placeholder={props.placeholder}
+				value={props.value}
+				onChange={(event) => props.onChange(event.target.value)}
+				aria-invalid={props.error ? true : undefined}
+				aria-describedby={props.error ? errorId : undefined}
+			/>
+			{props.error ? (
+				<span className="status error" id={errorId}>
+					{props.error}
+				</span>
+			) : null}
+		</div>
+	);
+}
 
 export default function CheckoutClient({ products }: { products: Product[] }) {
 	const router = useRouter();
@@ -42,7 +81,7 @@ export default function CheckoutClient({ products }: { products: Product[] }) {
 		expiry: '',
 		cvc: '',
 	});
-	const [errors, setErrors] = useState<Partial<Record<keyof FormValues, string>>>({});
+	const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
 	const cancelled = useRef(false);
 
 	useEffect(() => {
@@ -53,12 +92,12 @@ export default function CheckoutClient({ products }: { products: Product[] }) {
 		analytics.track({ name: 'payment_state', status: payment.status });
 	}, [payment.status]);
 
-	function setField(field: keyof FormValues, value: string) {
+	function setField(field: FieldKey, value: string) {
 		setValues((previous) => ({ ...previous, [field]: value }));
 	}
 
-	function validate(): Partial<Record<keyof FormValues, string>> {
-		const next: Partial<Record<keyof FormValues, string>> = {};
+	function validate(): Partial<Record<FieldKey, string>> {
+		const next: Partial<Record<FieldKey, string>> = {};
 		if (!EMAIL_PATTERN.test(values.email.trim())) next.email = 'Укажите корректный email для подтверждения заказа.';
 		if (values.name.trim().length < 2) next.name = 'Укажите имя получателя.';
 		if (values.phone.replace(/\D/g, '').length < 10) next.phone = 'Укажите телефон в формате +7 999 000 00 00.';
@@ -80,6 +119,7 @@ export default function CheckoutClient({ products }: { products: Product[] }) {
 			document.getElementById(`field-${firstError}`)?.focus();
 			return;
 		}
+
 		if (!isKnown(summary.total) || summary.total.amount <= 0) {
 			dispatchPayment({ type: 'submit' });
 			dispatchPayment({ type: 'fail', reason: 'Итоговая сумма не определена, оплата не выполнена.' });
@@ -114,6 +154,7 @@ export default function CheckoutClient({ products }: { products: Product[] }) {
 			unitPrice: line.unitPrice,
 			lineTotal: line.lineTotal,
 		}));
+
 		const deliveryOption = deliveryProvider.find(values.delivery);
 		const order = await orderRepository.create({
 			customer: {
@@ -193,73 +234,10 @@ export default function CheckoutClient({ products }: { products: Product[] }) {
 
 				<fieldset>
 					<legend>Контакты получателя</legend>
-					<div className="field">
-						<label htmlFor="field-email">Email</label>
-						<input
-							id="field-email"
-							type="email"
-							autoComplete="email"
-							value={values.email}
-							onChange={(event) => setField('email', event.target.value)}
-							aria-invalid={Boolean(errors.email)}
-							aria-describedby={errors.email ? 'error-email' : undefined}
-						/>
-						{errors.email ? (
-							<span className="status error" id="error-email">
-								{errors.email}
-							</span>
-						) : null}
-					</div>
-					<div className="field">
-						<label htmlFor="field-name">Имя и фамилия</label>
-						<input
-							id="field-name"
-							autoComplete="name"
-							value={values.name}
-							onChange={(event) => setField('name', event.target.value)}
-							aria-invalid={Boolean(errors.name)}
-							aria-describedby={errors.name ? 'error-name' : undefined}
-						/>
-						{errors.name ? (
-							<span className="status error" id="error-name">
-								{errors.name}
-							</span>
-						) : null}
-					</div>
-					<div className="field">
-						<label htmlFor="field-phone">Телефон</label>
-						<input
-							id="field-phone"
-							type="tel"
-							inputMode="tel"
-							autoComplete="tel"
-							value={values.phone}
-							onChange={(event) => setField('phone', event.target.value)}
-							aria-invalid={Boolean(errors.phone)}
-							aria-describedby={errors.phone ? 'error-phone' : undefined}
-						/>
-						{errors.phone ? (
-							<span className="status error" id="error-phone">
-								{errors.phone}
-							</span>
-						) : null}
-					</div>
-					<div className="field">
-						<label htmlFor="field-city">Город</label>
-						<input
-							id="field-city"
-							autoComplete="address-level2"
-							value={values.city}
-							onChange={(event) => setField('city', event.target.value)}
-							aria-invalid={Boolean(errors.city)}
-							aria-describedby={errors.city ? 'error-city' : undefined}
-						/>
-						{errors.city ? (
-							<span className="status error" id="error-city">
-								{errors.city}
-							</span>
-						) : null}
-					</div>
+					<TextField name="email" label="Email" type="email" inputMode="email" autoComplete="email" value={values.email} error={errors.email} onChange={(value) => setField('email', value)} />
+					<TextField name="name" label="Имя и фамилия" autoComplete="name" value={values.name} error={errors.name} onChange={(value) => setField('name', value)} />
+					<TextField name="phone" label="Телефон" type="tel" inputMode="tel" autoComplete="tel" value={values.phone} error={errors.phone} onChange={(value) => setField('phone', value)} />
+					<TextField name="city" label="Город" autoComplete="address-level2" value={values.city} error={errors.city} onChange={(value) => setField('city', value)} />
 				</fieldset>
 
 				<fieldset>
@@ -288,61 +266,78 @@ export default function CheckoutClient({ products }: { products: Product[] }) {
 					<p className="muted" style={{ fontSize: 13 }}>
 						Тестовые карты: успешная {businessConfig.payment.testCards.success}, отклонённая {businessConfig.payment.testCards.declined}.
 					</p>
-					<div className="field">
-						<label htmlFor="field-card">Номер карты</label>
-						<input
-							id="field-card"
-							inputMode="numeric"
-							autoComplete="off"
-							value={values.card}
-							onChange={(event) => setField('card', event.target.value)}
-							aria-invalid={Boolean(errors.card)}
-							aria-describedby={errors.card ? 'error-card' : undefined}
-						/>
-						{errors.card ? (
-							<span className="status error" id="error-card">
-								{errors.card}
-							</span>
-						) : null}
-					</div>
-					<div className="field">
-						<label htmlFor="field-expiry">Срок действия (ММ/ГГ)</label>
-						<input
-							id="field-expiry"
-							inputMode="numeric"
-							placeholder="12/29"
-							autoComplete="off"
-							value={values.expiry}
-							onChange={(event) => setField('expiry', event.target.value)}
-							aria-invalid={Boolean(errors.expiry)}
-							aria-describedby={errors.expiry ? 'error-expiry' : undefined}
-						/>
-						{errors.expiry ? (
-							<span className="status error" id="error-expiry">
-								{errors.expiry}
-							</span>
-						) : null}
-					</div>
-					<div className="field">
-						<label htmlFor="field-cvc">CVC</label>
-						<input
-							id="field-cvc"
-							inputMode="numeric"
-							autoComplete="off"
-							value={values.cvc}
-							onChange={(event) => setField('cvc', event.target.value)}
-							aria-invalid={Boolean(errors.cvc)}
-							aria-describedby={errors.cvc ? 'error-cvc' : undefined}
-						/>
-						{errors.cvc ? (
-							<span className="status error" id="error-cvc">
-								{errors.cvc}
-							</span>
-						) : null}
-					</div>
+					<TextField name="card" label="Номер карты" inputMode="numeric" value={values.card} error={errors.card} onChange={(value) => setField('card', value)} />
+					<TextField name="expiry" label="Срок действия (ММ/ГГ)" inputMode="numeric" placeholder="12/29" value={values.expiry} error={errors.expiry} onChange={(value) => setField('expiry', value)} />
+					<TextField name="cvc" label="CVC" inputMode="numeric" value={values.cvc} error={errors.cvc} onChange={(value) => setField('cvc', value)} />
 				</fieldset>
 
-				<div aria-live="polite" role="status">
+				<div role="status" aria-live="polite">
 					{payment.status === 'submitting' ? <p className="status info">Проводим оплату. Не закрывайте страницу.</p> : null}
 					{payment.status === 'failed' ? <p className="status error">Оплата не прошла: {payment.error}</p> : null}
-					{payment.status === 'cancelled'
+					{payment.status === 'cancelled' ? <p className="status warn">Оплата отменена. Заказ не оформлен, корзина сохранена.</p> : null}
+				</div>
+
+				<div className="hero-actions">
+					<button className="button accent" type="submit" disabled={busy} aria-busy={busy}>
+						{busy ? <span className="spinner" aria-hidden="true" /> : null}
+						{busy ? 'Оплачиваем…' : payment.status === 'failed' || payment.status === 'cancelled' ? 'Повторить оплату' : `Оплатить ${formatMoney(summary.total)}`}
+					</button>
+					{busy ? (
+						<button
+							className="button secondary"
+							type="button"
+							onClick={() => {
+								cancelled.current = true;
+								dispatchPayment({ type: 'cancel' });
+							}}
+						>
+							Отменить оплату
+						</button>
+					) : (
+						<Link className="button secondary" href="/cart">
+							Вернуться в корзину
+						</Link>
+					)}
+				</div>
+			</form>
+
+			<aside className="card summary" aria-labelledby="checkout-summary-heading">
+				<h2 id="checkout-summary-heading">Ваш заказ</h2>
+				<ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+					{summary.lines.map((line) => (
+						<li className="summary-row" key={`${line.productId}:${line.variantId}`}>
+							<span>
+								{line.name} × {line.quantity}
+								<br />
+								<span className="muted" style={{ fontSize: 13 }}>
+									{line.variantLabel}
+								</span>
+							</span>
+							<span>{formatMoney(line.lineTotal)}</span>
+						</li>
+					))}
+				</ul>
+				<div className="summary-row">
+					<span>Подытог</span>
+					<span>{formatMoney(summary.subtotal)}</span>
+				</div>
+				<div className="summary-row">
+					<span>Скидка{summary.promo.status === 'valid' ? ` (${summary.promo.code})` : ''}</span>
+					<span>−{formatMoney(summary.discount, '0 ₽')}</span>
+				</div>
+				<div className="summary-row">
+					<span>Доставка</span>
+					<span>Уточняется</span>
+				</div>
+				<div className="summary-row total">
+					<span>К оплате</span>
+					<span>{formatMoney(summary.total)}</span>
+				</div>
+				<p className="muted" style={{ fontSize: 13 }}>
+					{businessConfig.delivery.note}
+				</p>
+				{summary.hasPlaceholderPrices ? <p className="status warn">{businessConfig.pricing.disclaimer}</p> : null}
+			</aside>
+		</div>
+	);
+}
