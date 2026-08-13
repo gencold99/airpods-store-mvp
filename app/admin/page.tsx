@@ -1,0 +1,3 @@
+export const metadata={title:'Admin — Bright Future',robots:{index:false,follow:false}};
+const sections=['Dashboard','Products','Categories','Inventory','Orders','Promocodes','Reviews','Content','Delivery','Analytics','Settings'];
+export default function Admin(){return <main className="container"><div className="page-header"><div className="eyebrow">Frontend MVP</div><h1>Admin workspace</h1><p className="lead">Mock-панель для управления магазином. Реальная авторизация не включена.</p></div><div className="grid">{sections.map((s,i)=><div className="card" key={s}><div className="eyebrow">0{i+1}</div><h2>{s}</h2><p className="muted">Mock data ready</p></div>)}</div></main>}

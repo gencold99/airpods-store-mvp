@@ -1,0 +1,1 @@
+export const businessConfig = { currency: 'RUB' as const, delivery: { ufa: { label: 'Курьерская доставка по Уфе', price: null, eta: null }, russia: { label: 'Доставка по России', price: null, eta: null } }, warranty: { label: 'Гарантия', description: 'Условия будут добавлены после подтверждения.' } };

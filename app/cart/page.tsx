@@ -1,0 +1,2 @@
+import Link from 'next/link';
+export default function Cart(){return <main className="container"><div className="page-header"><div className="eyebrow">Cart</div><h1>Корзина</h1><p className="lead">Здесь появятся выбранные товары, промокод и прозрачный расчёт заказа.</p></div><div className="card"><h2>Корзина пока пуста</h2><p className="muted">Добавьте товар из каталога, чтобы продолжить.</p><Link className="button primary" href="/shop">Перейти в каталог</Link></div></main>}
