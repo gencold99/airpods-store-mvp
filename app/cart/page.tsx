@@ -1,2 +1,31 @@
-import Link from 'next/link';
-export default function Cart(){return <main className="container"><div className="page-header"><div className="eyebrow">Cart</div><h1>Корзина</h1><p className="lead">Здесь появятся выбранные товары, промокод и прозрачный расчёт заказа.</p></div><div className="card"><h2>Корзина пока пуста</h2><p className="muted">Добавьте товар из каталога, чтобы продолжить.</p><Link className="button primary" href="/shop">Перейти в каталог</Link></div></main>}
+import type { Metadata } from 'next';
+import CartClient from './CartClient';
+import { productRepository } from '@/lib/repositories';
+
+export const metadata: Metadata = {
+	title: 'Корзина — Bright Future',
+	description: 'Проверьте выбранные товары, промокод и итоговую сумму заказа.',
+	robots: { index: false, follow: true },
+};
+
+export default async function CartPage() {
+	const result = await productRepository.list();
+	const products = result.ok ? result.data : [];
+
+	return (
+		<main className="container" id="main" tabIndex={-1}>
+			<div className="page-header">
+				<div className="eyebrow">Cart</div>
+				<h1>Корзина</h1>
+				<p className="lead">Выбранные товары, промокод и прозрачный расчёт заказа.</p>
+			</div>
+			{result.ok ? (
+				<CartClient products={products} />
+			) : (
+				<div className="status error" role="alert">
+					Не удалось загрузить данные о товарах. Обновите страницу.
+				</div>
+			)}
+		</main>
+	);
+}
