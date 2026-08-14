@@ -1,67 +1,106 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { productRepository } from '@/lib/repositories';
-import { resolveUnitPrice } from '@/lib/pricing';
 import { formatMoney } from '@/lib/money';
 import { businessConfig } from '@/lib/config';
 import AddToCartButton from '@/app/components/AddToCartButton';
+import {
+	applyCatalogQuery,
+	isCatalogQueryActive,
+	listCategories,
+	parseCatalogQuery,
+	type RawSearchParams,
+} from '@/lib/catalog/query';
+import CatalogControls from './CatalogControls';
 
 export const metadata: Metadata = {
 	title: 'Каталог AirPods',
-	description: 'Сравните модели AirPods и добавьте нужную конфигурацию в корзину.',
+	description: 'Сравните модели AirPods, отфильтруйте по категории и наличию и добавьте нужную конфигурацию в корзину.',
+	alternates: { canonical: '/shop' },
 };
 
-export default async function Shop() {
+export default async function Shop({ searchParams }: { searchParams?: RawSearchParams }) {
 	const result = await productRepository.list();
 
 	if (!result.ok) {
 		return (
 			<main className="container page-header" id="main" tabIndex={-1}>
 				<div className="status error" role="alert">
-					Не удалось загрузить каталог.
+					Не удалось загрузить каталог. Обновите страницу.
 				</div>
 			</main>
 		);
 	}
 
 	const products = result.data;
-	const hasPlaceholderPrices = products.some((product) => resolveUnitPrice(product, product.variants[0]).isPlaceholder);
+	const query = parseCatalogQuery(searchParams);
+	const items = applyCatalogQuery(products, query);
+	const categories = listCategories(products);
+	const hasPlaceholderPrices = items.some((item) => item.isPlaceholderPrice);
 
 	return (
 		<main className="container" id="main" tabIndex={-1}>
 			<div className="page-header">
 				<div className="eyebrow">Catalog</div>
 				<h1>Каталог AirPods</h1>
-				<p className="lead">Сравните модели и выберите конфигурацию. Наличие и финальные цены подключаются через businessConfig.</p>
+				<p className="lead">
+					Сравните модели и выберите конфигурацию. Наличие и финальные цены подключаются через businessConfig.
+				</p>
 			</div>
 
-			<p className="muted">Моделей в каталоге: {products.length}</p>
+			<CatalogControls query={query} categories={categories} />
+
+			<p className="muted" role="status" aria-live="polite">
+				Найдено моделей: {items.length} из {products.length}
+			</p>
 			{hasPlaceholderPrices ? <p className="status warn">{businessConfig.pricing.disclaimer}</p> : null}
 
-			<div className="grid section" style={{ paddingTop: 20 }}>
-				{products.map((product) => {
-					const variant = product.variants[0];
-					const { price } = resolveUnitPrice(product, variant);
-					return (
-						<article className="card product-card" key={product.id}>
-							<Link href={`/products/${product.slug}`}>
-								<div className="product-image" aria-hidden="true">
-									{product.name.split(' ')[1]}
-								</div>
-								<h2>{product.name}</h2>
-							</Link>
-							<p className="muted">{product.tagline}</p>
-							<span className="price">{formatMoney(price)}</span>
-							<div className="hero-actions">
-								<AddToCartButton productId={product.id} variantId={variant.id} productName={product.name} />
-								<Link className="button secondary" href={`/products/${product.slug}`}>
-									Подробнее<span className="visually-hidden"> о {product.name}</span>
+			{items.length === 0 ? (
+				<div className="card">
+					<h2>Ничего не найдено</h2>
+					<p className="muted">
+						По выбранным условиям товаров нет. Измените запрос или сбросьте фильтры, чтобы увидеть весь каталог.
+					</p>
+					{isCatalogQueryActive(query) ? (
+						<Link className="button primary" href="/shop">
+							Сбросить фильтры
+						</Link>
+					) : null}
+				</div>
+			) : (
+				<div className="grid section" style={{ paddingTop: 20 }}>
+					{items.map((item) => {
+						const { product, price, inStock } = item;
+						const variant = product.variants[0];
+						return (
+							<article className="card product-card" key={product.id}>
+								<Link href={`/products/${product.slug}`}>
+									<div className="product-image" aria-hidden="true">
+										{product.name.split(' ')[1]}
+									</div>
+									<h2>{product.name}</h2>
 								</Link>
-							</div>
-						</article>
-					);
-				})}
-			</div>
+								<p className="muted">{product.tagline}</p>
+								<span className="price">{formatMoney(price)}</span>
+								{inStock ? null : <p className="muted">Нет в наличии</p>}
+								<div className="hero-actions">
+									{variant ? (
+										<AddToCartButton
+											productId={product.id}
+											variantId={variant.id}
+											productName={product.name}
+											disabled={!inStock}
+										/>
+									) : null}
+									<Link className="button secondary" href={`/products/${product.slug}`}>
+										Подробнее<span className="visually-hidden"> о {product.name}</span>
+									</Link>
+								</div>
+							</article>
+						);
+					})}
+				</div>
+			)}
 		</main>
 	);
 }
