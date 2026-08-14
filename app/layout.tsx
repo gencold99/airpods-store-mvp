@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
+// Загружается вторым: уточнения по a11y, responsive и состояниям должны перекрывать базу.
+import './refinements.css';
 import { CartProvider } from '@/lib/cart/CartProvider';
 import SiteHeader from './components/SiteHeader';
 import { siteConfig } from '@/lib/config';
