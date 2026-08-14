@@ -1,0 +1,190 @@
+/*
+ * Increment 2 overrides. Загружается после globals.css, поэтому может уточнять базовый слой.
+ *
+ * Почему отдельный файл: базовые токены в globals.css хранятся одной минифицированной
+ * строкой; ручные правки такого файла плохо ревьюатся и легко ломаются. Новые правила
+ * живут в читаемом слое с объяснением причин.
+ */
+
+/* --- Touch targets (P0 mobile a11y): минимум 44px у всего, что нажимается --- */
+.button {
+	min-height: 44px;
+}
+.nav a,
+.chip,
+.link-button {
+	min-height: 44px;
+	display: inline-flex;
+	align-items: center;
+}
+.field input,
+.field select,
+.qty input {
+	min-height: 44px;
+}
+/* Сам чекбокс остаётся компактным, но строка целиком — удобная цель для пальца. */
+.radio-row {
+	min-height: 44px;
+	align-items: center;
+}
+.radio-row input[type='checkbox'],
+.radio-row input[type='radio'] {
+	width: 22px;
+	height: 22px;
+	flex: 0 0 auto;
+}
+.radio-row label {
+	flex: 1 1 auto;
+	padding: 10px 0;
+}
+
+/* --- Desktop фильтры в два ряда: поиск во всю ширину, условия — ниже --- */
+@media (min-width: 901px) {
+	.catalog-panel.is-inline .drawer-body {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		column-gap: 20px;
+	}
+	.catalog-panel.is-inline .drawer-body > .field:first-child {
+		grid-column: 1 / -1;
+	}
+}
+
+/* --- Skeletons: фиксированные высоты, чтобы контент не сдвигал разметку --- */
+.skeleton {
+	border-radius: 14px;
+	background: linear-gradient(90deg, #eef2f7 0%, #e2e9f5 50%, #eef2f7 100%);
+	background-size: 200% 100%;
+	animation: skeleton-sheen 1.4s ease-in-out infinite;
+	margin-bottom: 12px;
+}
+@keyframes skeleton-sheen {
+	from {
+		background-position: 200% 0;
+	}
+	to {
+		background-position: -200% 0;
+	}
+}
+.skeleton-eyebrow {
+	height: 14px;
+	width: 180px;
+}
+.skeleton-display {
+	height: 96px;
+}
+.skeleton-lead {
+	height: 60px;
+	max-width: 600px;
+}
+.skeleton-button {
+	height: 48px;
+	width: 200px;
+	border-radius: 999px;
+}
+.skeleton-hero-art {
+	min-height: 460px;
+	border-radius: 36px;
+}
+.skeleton-product-image {
+	height: 220px;
+	border-radius: 16px;
+}
+.skeleton-title {
+	height: 24px;
+	width: 65%;
+}
+.skeleton-text {
+	height: 16px;
+	width: 85%;
+}
+.skeleton-price {
+	height: 30px;
+	width: 40%;
+}
+.skeleton-toolbar {
+	height: 72px;
+	border-radius: 16px;
+}
+.skeleton-panel {
+	height: 168px;
+	border-radius: 16px;
+	margin-bottom: 24px;
+}
+.skeleton-gallery {
+	min-height: 380px;
+	border-radius: 24px;
+}
+.skeleton-rail {
+	height: 84px;
+	border-radius: 14px;
+}
+@media (max-width: 760px) {
+	.skeleton-hero-art {
+		min-height: 300px;
+	}
+	.skeleton-gallery {
+		min-height: 260px;
+	}
+	.skeleton-button {
+		width: 100%;
+	}
+}
+
+/* --- Trust: неподтверждённое условие видно глазом, а не только в конфиге --- */
+.trust-pending {
+	margin-left: 8px;
+	min-height: 26px;
+	padding: 2px 10px;
+	background: #fff5e5;
+	border-color: #f0d9ae;
+	color: #7a4a04;
+	font-size: 12px;
+}
+
+/* --- FAQ и финальный CTA --- */
+.faq {
+	display: grid;
+	gap: 12px;
+}
+.faq-item summary {
+	cursor: pointer;
+	font-weight: 700;
+	min-height: 44px;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+.faq-item summary:focus-visible {
+	outline: 3px solid #9baeff;
+	outline-offset: 3px;
+}
+.faq-item p {
+	margin: 10px 0 0;
+}
+.cta-band {
+	display: flex;
+	gap: 20px;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+}
+.cta-band h2 {
+	margin-bottom: 6px;
+}
+.cta-band p {
+	margin: 0;
+	max-width: 640px;
+}
+@media (max-width: 760px) {
+	.cta-band .button {
+		width: 100%;
+	}
+}
+
+/* --- Safe area: sticky-слои и футер не прячутся за жестовую полосу --- */
+.overlay-sheet .overlay-panel {
+	padding-bottom: calc(22px + env(safe-area-inset-bottom));
+}
+.footer {
+	padding-bottom: calc(36px + env(safe-area-inset-bottom));
+}

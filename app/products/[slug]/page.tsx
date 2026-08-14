@@ -4,6 +4,7 @@ import { productRepository } from '@/lib/repositories';
 import { businessConfig } from '@/lib/config';
 import { formatPrice, resolveUnitPrice } from '@/lib/pricing';
 import AddToCartForm from '@/app/components/AddToCartForm';
+import TrustList from '@/app/components/TrustList';
 import ProductGallery from './ProductGallery';
 import PriceRequestForm from './PriceRequestForm';
 
@@ -65,14 +66,8 @@ export default async function ProductPage({ params }: { params: { slug: string }
 						<p className="status warn">Модели нет в наличии, поэтому добавить её в корзину нельзя.</p>
 					)}
 
-					<ul className="reassurance">
-						{businessConfig.trust.slice(0, 2).map((signal) => (
-							<li key={signal.id}>
-								<strong>{signal.title}</strong>
-								<span className="muted"> {signal.text}</span>
-							</li>
-						))}
-					</ul>
+					{/* Тот же компонент, что на главной: статус обещания не может расходиться по страницам. */}
+					<TrustList signals={businessConfig.trust.slice(0, 2)} label="Ключевые гарантии магазина" />
 				</div>
 			</div>
 
@@ -113,13 +108,9 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
 			<section className="section" style={{ paddingTop: 0 }}>
 				<h2>Доставка, оплата и гарантия</h2>
-				<ul className="reassurance">
-					{businessConfig.trust.map((signal) => (
-						<li key={signal.id}>
-							<strong>{signal.title}</strong>
-							<span className="muted"> {signal.text}</span>
-						</li>
-					))}
+				<TrustList signals={businessConfig.trust} label="Условия покупки" />
+				{/* Гарантия — не trust signal: её статус живёт в businessConfig.warranty. */}
+				<ul className="reassurance" style={{ marginTop: 10 }}>
 					<li>
 						<strong>{businessConfig.warranty.label}</strong>
 						<span className="muted"> {businessConfig.warranty.description}</span>
