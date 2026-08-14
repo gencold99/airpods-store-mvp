@@ -12,6 +12,7 @@ import { analytics } from '@/lib/analytics';
 import { initialPaymentState, mockPaymentProvider, paymentReducer } from '@/lib/payment';
 import { newOrderReference, orderRepository } from '@/lib/repositories';
 import { saveLastOrder } from '@/lib/order/orderStorage';
+import TrustList from '@/app/components/TrustList';
 import type { OrderLine, Product } from '@/lib/domain';
 
 type FormValues = {
@@ -369,14 +370,8 @@ export default function CheckoutClient({ products }: { products: Product[] }) {
 				</ol>
 
 				<h3>Почему можно доверять</h3>
-				<ul className="reassurance">
-					{businessConfig.trust.map((signal) => (
-						<li key={signal.id}>
-							<strong>{signal.title}</strong>
-							<span className="muted"> {signal.text}</span>
-						</li>
-					))}
-				</ul>
+				{/* Тот же компонент, что на главной и PDP: на экране оплаты тем более нельзя выдавать неподтверждённое за обещание. */}
+				<TrustList signals={businessConfig.trust} label="Почему можно доверять" />
 			</aside>
 		</div>
 	);
