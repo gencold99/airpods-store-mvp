@@ -51,7 +51,9 @@ describe('ConfirmationClient', () => {
 		render(<ConfirmationClient />);
 
 		expect(screen.getByRole('heading', { name: /Заказ BF-TEST подтверждён/ })).toBeInTheDocument();
-		expect(screen.getByText('Оплачено')).toBeInTheDocument();
+
+		// "Оплачено" is also the label of the total row, so scope this to the badge.
+		expect(screen.getByText('Оплачено', { selector: '.badge' })).toBeInTheDocument();
 	});
 
 	it('refuses an order whose paid status was tampered with', () => {
