@@ -3,7 +3,6 @@ import type { Metadata } from 'next';
 import { productRepository } from '@/lib/repositories';
 import { businessConfig } from '@/lib/config';
 import { formatPrice } from '@/lib/pricing';
-import AddToCartButton from '@/app/components/AddToCartButton';
 import {
 	applyCatalogQuery,
 	isCatalogQueryActive,
@@ -12,6 +11,7 @@ import {
 	type RawSearchParams,
 } from '@/lib/catalog/query';
 import CatalogControls from './CatalogControls';
+import CatalogGrid, { type CatalogCardView } from './CatalogGrid';
 
 export const metadata: Metadata = {
 	title: 'Каталог AirPods',
@@ -39,6 +39,22 @@ export default async function Shop({ searchParams }: { searchParams?: RawSearchP
 	const hasDemoPrices = items.some((item) => item.priceMode === 'demo');
 	const hasOnRequestPrices = items.some((item) => item.priceMode === 'on-request');
 
+	// Цена форматируется на сервере: в клиент уезжает готовая строка, а не Intl-вызов.
+	const cards: CatalogCardView[] = items.map((item) => ({
+		id: item.product.id,
+		slug: item.product.slug,
+		name: item.product.name,
+		initials: item.product.name.split(' ')[1] ?? item.product.name.slice(0, 3),
+		tagline: item.product.tagline,
+		category: item.product.category,
+		priceLabel: formatPrice(item.price),
+		priceOnRequest: item.priceMode === 'on-request',
+		inStock: item.inStock,
+		purchasable: item.purchasable,
+		variantId: item.product.variants[0]?.id ?? null,
+		highlights: item.product.highlights.slice(0, 3),
+	}));
+
 	return (
 		<main className="container" id="main" tabIndex={-1}>
 			<div className="page-header">
@@ -47,15 +63,12 @@ export default async function Shop({ searchParams }: { searchParams?: RawSearchP
 				<p className="lead">Сравните модели и выберите конфигурацию.</p>
 			</div>
 
-			<CatalogControls query={query} categories={categories} />
+			<CatalogControls query={query} categories={categories} resultCount={items.length} />
 
-			<p className="muted" role="status" aria-live="polite">
-				Найдено моделей: {items.length} из {products.length}
-			</p>
 			{hasDemoPrices ? <p className="status warn">{businessConfig.pricing.demoDisclaimer}</p> : null}
 			{hasOnRequestPrices ? <p className="status info">{businessConfig.pricing.onRequestNote}</p> : null}
 
-			{items.length === 0 ? (
+			{cards.length === 0 ? (
 				<div className="card">
 					<h2>Ничего не найдено</h2>
 					<p className="muted">
@@ -68,43 +81,7 @@ export default async function Shop({ searchParams }: { searchParams?: RawSearchP
 					) : null}
 				</div>
 			) : (
-				<div className="grid section" style={{ paddingTop: 20 }}>
-					{items.map((item) => {
-						const { product, price, priceMode, inStock, purchasable } = item;
-						const variant = product.variants[0];
-						return (
-							<article className="card product-card" key={product.id}>
-								<Link href={`/products/${product.slug}`}>
-									<div className="product-image" aria-hidden="true">
-										{product.name.split(' ')[1]}
-									</div>
-									<h2>{product.name}</h2>
-								</Link>
-								<p className="muted">{product.tagline}</p>
-								<span className="price">{formatPrice(price)}</span>
-								{inStock ? null : <p className="muted">Нет в наличии</p>}
-								<div className="hero-actions">
-									{priceMode === 'on-request' ? (
-										<Link className="button primary" href={`/products/${product.slug}#price-request`}>
-											{businessConfig.pricing.onRequestAction}
-											<span className="visually-hidden"> — {product.name}</span>
-										</Link>
-									) : variant ? (
-										<AddToCartButton
-											productId={product.id}
-											variantId={variant.id}
-											productName={product.name}
-											disabled={!purchasable}
-										/>
-									) : null}
-									<Link className="button secondary" href={`/products/${product.slug}`}>
-										Подробнее<span className="visually-hidden"> о {product.name}</span>
-									</Link>
-								</div>
-							</article>
-						);
-					})}
-				</div>
+				<CatalogGrid items={cards} />
 			)}
 		</main>
 	);

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { productRepository } from '@/lib/repositories';
+import { businessConfig } from '@/lib/config';
 import { formatPrice, resolveUnitPrice } from '@/lib/pricing';
 
 export default async function Home() {
@@ -19,13 +20,13 @@ export default async function Home() {
 						<Link className="button primary" href="/shop">
 							Смотреть каталог
 						</Link>
-						<a className="button secondary" href="#why">
-							Почему мы
+						<a className="button secondary" href="#how">
+							Как проходит покупка
 						</a>
 					</div>
 					<div className="trust">
 						<span>✓ Данные без выдуманных обещаний</span>
-						<span>✓ Guest checkout</span>
+						<span>✓ Оформление без регистрации</span>
 					</div>
 				</div>
 				<div className="hero-art" role="img" aria-label="Слот изображения продукта" />
@@ -53,16 +54,42 @@ export default async function Home() {
 				</div>
 			</section>
 
-			<section id="why" className="section container split">
-				<div>
-					<div className="eyebrow">Why Bright Future</div>
-					<h2>Технологичный магазин без лишнего шума.</h2>
-				</div>
-				<div className="card">
-					<p>
-						Каждый бизнес-параметр — цена, наличие, доставка и гарантия — вынесен в конфигурацию и может быть заменён без переделки интерфейса.
-					</p>
-				</div>
+			<section id="how" className="section container">
+				<div className="eyebrow">How it works</div>
+				<h2>Как проходит покупка</h2>
+				<ol className="steps-cards">
+					<li className="card">
+						<h3>1. Выбор</h3>
+						<p className="muted">
+							Фильтры, сортировка и быстрый просмотр помогают сравнить модели, не теряя место в каталоге.
+						</p>
+					</li>
+					<li className="card">
+						<h3>2. Оформление</h3>
+						<p className="muted">
+							Гостевое оформление без регистрации. В итоге показаны только товары: стоимость доставки менеджер подтверждает отдельно.
+						</p>
+					</li>
+					<li className="card">
+						<h3>3. Подтверждение</h3>
+						<p className="muted">
+							Заказ фиксируется только после успешной оплаты, а затем менеджер согласует доставку.
+						</p>
+					</li>
+				</ol>
+			</section>
+
+			<section id="why" className="section container">
+				<div className="eyebrow">Why Bright Future</div>
+				<h2>Технологичный магазин без лишнего шума.</h2>
+				<ul className="reassurance">
+					{businessConfig.trust.map((signal) => (
+						<li key={signal.id}>
+							<strong>{signal.title}</strong>
+							<span className="muted"> {signal.text}</span>
+						</li>
+					))}
+				</ul>
 			</section>
 		</main>
 	);
