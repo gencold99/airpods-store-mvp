@@ -5,19 +5,78 @@ on:
   push:
     branches: [main]
 
+# The failure report below needs to write a PR comment. Everything else is read-only.
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+
       - uses: actions/setup-node@v5
         with:
           node-version: 20
-          # setup-node@v5 caches by default and fails when it finds no lockfile.
-          # Flip this to true in the same commit that adds package-lock.json.
+          # setup-node@v5 caches by default and fails hard when it finds no lockfile,
+          # which is what broke this job before. The cache is handled explicitly below
+          # and keyed on the lockfile, so it turns itself on when the lockfile lands.
           package-manager-cache: false
-      - run: npm install --no-audit --no-fund
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm test
-      - run: npm run build
+
+      - name: Cache npm downloads
+        if: hashFiles('package-lock.json') != ''
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-node20-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-node20-
+
+      - name: install
+        shell: bash
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci --no-audit --no-fund 2>&1 | tee -a ci.log
+          else
+            echo "::warning::package-lock.json is missing, so this install is not reproducible. See .github/workflows/lockfile.yml"
+            npm install --no-audit --no-fund 2>&1 | tee -a ci.log
+          fi
+
+      - name: typecheck
+        shell: bash
+        run: npm run typecheck 2>&1 | tee -a ci.log
+
+      - name: lint
+        shell: bash
+        run: npm run lint 2>&1 | tee -a ci.log
+
+      - name: test
+        shell: bash
+        run: npm test 2>&1 | tee -a ci.log
+
+      - name: build
+        shell: bash
+        run: npm run build 2>&1 | tee -a ci.log
+
+      # A red check with no readable reason costs more than the comment noise: without
+      # this, the log is only visible to someone with access to the Actions UI.
+      - name: Report the failure on the pull request
+        if: failure() && github.event_name == 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          {
+            printf 'CI job `validate` failed on `%s` (run %s).\n\n' "${GITHUB_SHA}" "${GITHUB_RUN_ID}"
+            printf 'Tail of the captured output:\n\n'
+            printf '```text\n'
+            tail -n 250 ci.log 2>/dev/null || printf 'no output was captured\n'
+            printf '\n```\n'
+          } > ci-comment.md
+          gh pr comment "${PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --body-file ci-comment.md

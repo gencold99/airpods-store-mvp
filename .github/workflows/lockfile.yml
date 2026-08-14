@@ -1,0 +1,52 @@
+name: Lockfile
+
+# npm resolves the dependency tree against the registry, so a real package-lock.json
+# cannot be produced in an offline environment. CI is the one place with a real npm,
+# so it generates the lockfile once and commits it back to the branch.
+#
+# This workflow is a no-op as soon as package-lock.json is committed and unchanged.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'package.json'
+      - '.github/workflows/lockfile.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lockfile-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  lockfile:
+    # main is release history: the lockfile arrives there through a pull request.
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          package-manager-cache: false
+
+      # --package-lock-only resolves the tree without running install scripts.
+      - name: Generate package-lock.json
+        shell: bash
+        run: npm install --package-lock-only --no-audit --no-fund
+
+      - name: Commit the lockfile when it changed
+        shell: bash
+        run: |
+          if [ -z "$(git status --porcelain -- package-lock.json)" ]; then
+            echo "package-lock.json is already up to date, nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore(deps): generate package-lock.json for reproducible installs"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
