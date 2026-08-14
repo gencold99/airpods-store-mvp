@@ -105,7 +105,13 @@ describe('applyCatalogQuery', () => {
 });
 
 describe('listCategories', () => {
-	it('returns unique sorted categories', () => {
-		expect(listCategories(catalog)).toEqual(['AirPods', 'AirPods Pro', 'Наушники']);
+	it('returns unique categories ordered by the Russian collation', () => {
+		const categories = listCategories(catalog);
+
+		// The relative position of Cyrillic and Latin labels is decided by the ICU
+		// collation, so assert the contract instead of a hard-coded order.
+		expect(categories).toHaveLength(3);
+		expect([...categories].sort()).toEqual(['AirPods', 'AirPods Pro', 'Наушники']);
+		expect(categories).toEqual([...categories].sort((a, b) => a.localeCompare(b, 'ru')));
 	});
 });
