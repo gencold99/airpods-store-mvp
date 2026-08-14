@@ -9,12 +9,13 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
-      # No cache: the repository intentionally has no committed lockfile yet.
-      # setup-node with `cache: npm` fails hard when no lockfile is present.
+          # setup-node@v5 caches by default and fails when it finds no lockfile.
+          # Flip this to true in the same commit that adds package-lock.json.
+          package-manager-cache: false
       - run: npm install --no-audit --no-fund
       - run: npm run typecheck
       - run: npm run lint
