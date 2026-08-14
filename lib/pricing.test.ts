@@ -37,7 +37,8 @@ function cart(items: CartState['items'], promoCode: string | null = null): CartS
 describe('formatPrice', () => {
 	it('renders an unknown amount as a price on request instead of a number', () => {
 		expect(formatPrice(money(null))).toBe(businessConfig.pricing.onRequestLabel);
-		expect(formatPrice(money(149000))).toMatch(/149/);
+		// 200 ₽: ниже 1000, поэтому ассерт не зависит от группировки разрядов в Intl.
+		expect(formatPrice(money(20000))).toMatch(/200/);
 	});
 });
 
