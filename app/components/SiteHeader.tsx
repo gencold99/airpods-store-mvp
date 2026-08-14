@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useCart } from '@/lib/cart/CartProvider';
 
-export default function SiteHeader() {
+export default function SiteHeader({ showAdminLink = false }: { showAdminLink?: boolean }) {
 	const { itemCount, hydrated } = useCart();
 
 	return (
@@ -22,7 +22,7 @@ export default function SiteHeader() {
 					) : null}
 					<span className="visually-hidden">{hydrated ? `, товаров в корзине: ${itemCount}` : ''}</span>
 				</Link>
-				<Link href="/admin">Админ</Link>
+				{showAdminLink ? <Link href="/admin">Админ</Link> : null}
 			</nav>
 		</header>
 	);

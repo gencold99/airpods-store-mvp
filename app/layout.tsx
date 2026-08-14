@@ -3,6 +3,7 @@ import './globals.css';
 import { CartProvider } from '@/lib/cart/CartProvider';
 import SiteHeader from './components/SiteHeader';
 import { siteConfig } from '@/lib/config';
+import { isAdminPreviewEnabled } from '@/lib/admin';
 
 export const metadata: Metadata = {
 	metadataBase: new URL(siteConfig.baseUrl),
@@ -26,7 +27,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 					<a className="skip-link" href="#main">
 						Перейти к основному содержимому
 					</a>
-					<SiteHeader />
+					{/* The admin link is only rendered when middleware actually lets the route through. */}
+					<SiteHeader showAdminLink={isAdminPreviewEnabled()} />
 					{children}
 					<footer className="footer">
 						<div className="container">
