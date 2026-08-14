@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { productRepository } from '@/lib/repositories';
-import { formatMoney } from '@/lib/money';
 import { businessConfig } from '@/lib/config';
+import { formatPrice } from '@/lib/pricing';
 import AddToCartButton from '@/app/components/AddToCartButton';
 import {
 	applyCatalogQuery,
@@ -36,16 +36,15 @@ export default async function Shop({ searchParams }: { searchParams?: RawSearchP
 	const query = parseCatalogQuery(searchParams);
 	const items = applyCatalogQuery(products, query);
 	const categories = listCategories(products);
-	const hasPlaceholderPrices = items.some((item) => item.isPlaceholderPrice);
+	const hasDemoPrices = items.some((item) => item.priceMode === 'demo');
+	const hasOnRequestPrices = items.some((item) => item.priceMode === 'on-request');
 
 	return (
 		<main className="container" id="main" tabIndex={-1}>
 			<div className="page-header">
 				<div className="eyebrow">Catalog</div>
 				<h1>Каталог AirPods</h1>
-				<p className="lead">
-					Сравните модели и выберите конфигурацию. Наличие и финальные цены подключаются через businessConfig.
-				</p>
+				<p className="lead">Сравните модели и выберите конфигурацию.</p>
 			</div>
 
 			<CatalogControls query={query} categories={categories} />
@@ -53,7 +52,8 @@ export default async function Shop({ searchParams }: { searchParams?: RawSearchP
 			<p className="muted" role="status" aria-live="polite">
 				Найдено моделей: {items.length} из {products.length}
 			</p>
-			{hasPlaceholderPrices ? <p className="status warn">{businessConfig.pricing.disclaimer}</p> : null}
+			{hasDemoPrices ? <p className="status warn">{businessConfig.pricing.demoDisclaimer}</p> : null}
+			{hasOnRequestPrices ? <p className="status info">{businessConfig.pricing.onRequestNote}</p> : null}
 
 			{items.length === 0 ? (
 				<div className="card">
@@ -70,7 +70,7 @@ export default async function Shop({ searchParams }: { searchParams?: RawSearchP
 			) : (
 				<div className="grid section" style={{ paddingTop: 20 }}>
 					{items.map((item) => {
-						const { product, price, inStock } = item;
+						const { product, price, priceMode, inStock, purchasable } = item;
 						const variant = product.variants[0];
 						return (
 							<article className="card product-card" key={product.id}>
@@ -81,15 +81,20 @@ export default async function Shop({ searchParams }: { searchParams?: RawSearchP
 									<h2>{product.name}</h2>
 								</Link>
 								<p className="muted">{product.tagline}</p>
-								<span className="price">{formatMoney(price)}</span>
+								<span className="price">{formatPrice(price)}</span>
 								{inStock ? null : <p className="muted">Нет в наличии</p>}
 								<div className="hero-actions">
-									{variant ? (
+									{priceMode === 'on-request' ? (
+										<Link className="button primary" href={`/products/${product.slug}#price-request`}>
+											{businessConfig.pricing.onRequestAction}
+											<span className="visually-hidden"> — {product.name}</span>
+										</Link>
+									) : variant ? (
 										<AddToCartButton
 											productId={product.id}
 											variantId={variant.id}
 											productName={product.name}
-											disabled={!inStock}
+											disabled={!purchasable}
 										/>
 									) : null}
 									<Link className="button secondary" href={`/products/${product.slug}`}>

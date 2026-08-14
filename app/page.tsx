@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { productRepository } from '@/lib/repositories';
-import { resolveUnitPrice } from '@/lib/pricing';
-import { formatMoney } from '@/lib/money';
+import { formatPrice, resolveUnitPrice } from '@/lib/pricing';
 
 export default async function Home() {
 	const result = await productRepository.list();
@@ -46,7 +45,7 @@ export default async function Home() {
 								<div>
 									<h3>{product.name}</h3>
 									<p className="muted">{product.tagline}</p>
-									<span className="price">{formatMoney(price)}</span>
+									<span className="price">{formatPrice(price)}</span>
 								</div>
 							</Link>
 						);

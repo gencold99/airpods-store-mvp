@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
+import { businessConfig } from '@/lib/config';
 import { money } from '@/lib/money';
 import type { Order } from '@/lib/domain';
 import ConfirmationClient from './ConfirmationClient';
@@ -27,9 +28,10 @@ const paidOrder: Order = {
 	promoCode: null,
 	deliveryOptionId: 'ufa-courier',
 	deliveryLabel: 'Курьерская доставка по Уфе',
+	deliveryCostStatus: 'pending',
 	status: 'paid',
 	paymentReference: 'PAY-BF-TEST',
-	pricingIsPlaceholder: false,
+	pricingIsDemo: false,
 };
 
 afterEach(() => {
@@ -51,9 +53,16 @@ describe('ConfirmationClient', () => {
 		render(<ConfirmationClient />);
 
 		expect(screen.getByRole('heading', { name: /Заказ BF-TEST подтверждён/ })).toBeInTheDocument();
-
-		// "Оплачено" is also the label of the total row, so scope this to the badge.
 		expect(screen.getByText('Оплачено', { selector: '.badge' })).toBeInTheDocument();
+	});
+
+	it('says the paid amount covers goods only while delivery is still pending', () => {
+		window.sessionStorage.setItem(ORDER_KEY, JSON.stringify(paidOrder));
+
+		render(<ConfirmationClient />);
+
+		expect(screen.getByText('Оплачено за товары')).toBeInTheDocument();
+		expect(screen.getByText(businessConfig.totals.deliveryValue)).toBeInTheDocument();
 	});
 
 	it('refuses an order whose paid status was tampered with', () => {

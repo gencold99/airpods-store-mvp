@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { productRepository } from '@/lib/repositories';
 import { businessConfig } from '@/lib/config';
-import { resolveUnitPrice } from '@/lib/pricing';
-import { formatMoney } from '@/lib/money';
+import { formatPrice, resolveUnitPrice } from '@/lib/pricing';
 import AddToCartForm from '@/app/components/AddToCartForm';
+import PriceRequestForm from './PriceRequestForm';
 
 export async function generateStaticParams() {
 	const result = await productRepository.list();
@@ -26,7 +26,9 @@ export default async function ProductPage({ params }: { params: { slug: string }
 	const result = await productRepository.getBySlug(params.slug);
 	if (!result.ok) notFound();
 	const product = result.data;
-	const { price, isPlaceholder } = resolveUnitPrice(product, product.variants[0]);
+	const { price, mode } = resolveUnitPrice(product, product.variants[0]);
+	const priceOnRequest = mode === 'on-request';
+	const inStock = product.availability === 'available' && product.variants.some((variant) => variant.available);
 
 	return (
 		<main className="container" id="main" tabIndex={-1}>
@@ -41,13 +43,26 @@ export default async function ProductPage({ params }: { params: { slug: string }
 					<span className="display">{product.name.split(' ')[1]}</span>
 				</div>
 				<div className="card">
-					<p className="price">{formatMoney(price)}</p>
-					{isPlaceholder ? <p className="status warn">{businessConfig.pricing.disclaimer}</p> : null}
+					<p className="price">{formatPrice(price)}</p>
+					{mode === 'demo' ? <p className="status warn">{businessConfig.pricing.demoDisclaimer}</p> : null}
+					{priceOnRequest ? <p className="status info">{businessConfig.pricing.onRequestNote}</p> : null}
+
 					<h2>Конфигурация и покупка</h2>
-					<AddToCartForm product={product} />
+					{priceOnRequest ? (
+						<a className="button primary" href="#price-request">
+							{businessConfig.pricing.onRequestAction}
+						</a>
+					) : inStock ? (
+						<AddToCartForm product={product} />
+					) : (
+						<p className="status warn">Модели нет в наличии, поэтому добавить её в корзину нельзя.</p>
+					)}
+
 					<hr />
 					<h3>Доставка</h3>
-					<p className="muted">{businessConfig.delivery.ufa.label}. {businessConfig.delivery.note}</p>
+					<p className="muted">
+						{businessConfig.delivery.ufa.label}. {businessConfig.delivery.note}
+					</p>
 					<h3>{businessConfig.warranty.label}</h3>
 					<p className="muted">{businessConfig.warranty.description}</p>
 				</div>
@@ -59,6 +74,14 @@ export default async function ProductPage({ params }: { params: { slug: string }
 					<p className="muted">Технические характеристики будут показаны только после верификации источника данных.</p>
 				</div>
 			</section>
+
+			{priceOnRequest ? (
+				<section className="section" id="price-request" style={{ paddingTop: 0 }}>
+					<h2>{businessConfig.pricing.onRequestAction}</h2>
+					<p className="muted">{businessConfig.pricing.onRequestNote}</p>
+					<PriceRequestForm product={product} />
+				</section>
+			) : null}
 		</main>
 	);
 }

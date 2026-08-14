@@ -1,5 +1,6 @@
 export type AnalyticsEvent =
 	| { name: 'add_to_cart'; productId: string; variantId: string; quantity: number }
+	| { name: 'price_request'; productId: string }
 	| { name: 'view_cart'; itemCount: number }
 	| { name: 'begin_checkout'; itemCount: number }
 	| { name: 'payment_state'; status: string }

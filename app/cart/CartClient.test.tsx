@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { CartProvider } from '@/lib/cart/CartProvider';
+import { businessConfig } from '@/lib/config';
 import { money } from '@/lib/money';
 import type { Product } from '@/lib/domain';
 import CartClient from './CartClient';
 
 const CART_KEY = 'bright-future.cart.v1';
+const GOODS_TOTAL = businessConfig.totals.goodsLabel;
 
 // 200 ₽ per unit. Every total in this file stays below 1000 so the assertions
 // do not depend on how Intl groups thousands.
@@ -16,6 +18,8 @@ const product: Product = {
 	tagline: 'Тестовая модель',
 	category: 'AirPods',
 	image: null,
+	gallery: [],
+	highlights: [],
 	price: money(20000),
 	oldPrice: money(null),
 	availability: 'available',
@@ -23,17 +27,26 @@ const product: Product = {
 	specs: {},
 };
 
-function seedCart(quantity: number): void {
+const unpriced: Product = {
+	...product,
+	id: 'unpriced',
+	slug: 'unpriced',
+	name: 'AirPods Future',
+	price: money(null),
+	variants: [{ id: 'standard', label: 'Стандартная версия', sku: 'SKU-unpriced', price: money(null), available: true }],
+};
+
+function seedCart(quantity: number, productId = 'first'): void {
 	window.localStorage.setItem(
 		CART_KEY,
-		JSON.stringify({ items: [{ productId: 'first', variantId: 'standard', quantity }], promoCode: null }),
+		JSON.stringify({ items: [{ productId, variantId: 'standard', quantity }], promoCode: null }),
 	);
 }
 
-function renderCart() {
+function renderCart(products: Product[] = [product]) {
 	return render(
 		<CartProvider>
-			<CartClient products={[product]} />
+			<CartClient products={products} />
 		</CartProvider>,
 	);
 }
@@ -69,11 +82,11 @@ describe('CartClient', () => {
 		seedCart(2);
 		renderCart();
 
-		expect(summaryRow('Итого')).toHaveTextContent('400');
+		expect(summaryRow(GOODS_TOTAL)).toHaveTextContent('400');
 
 		fireEvent.change(screen.getByLabelText(/Количество/), { target: { value: '3' } });
 
-		expect(summaryRow('Итого')).toHaveTextContent('600');
+		expect(summaryRow(GOODS_TOTAL)).toHaveTextContent('600');
 	});
 
 	it('applies a valid promo code and reduces the total', () => {
@@ -84,7 +97,7 @@ describe('CartClient', () => {
 
 		expect(screen.getByText(/Промокод BRIGHT10 применён/)).toBeInTheDocument();
 		expect(summaryRow('Скидка')).toHaveTextContent('40');
-		expect(summaryRow('Итого')).toHaveTextContent('360');
+		expect(summaryRow(GOODS_TOTAL)).toHaveTextContent('360');
 	});
 
 	it('rejects an unknown promo code and leaves the total untouched', () => {
@@ -94,7 +107,7 @@ describe('CartClient', () => {
 		applyPromo('nope');
 
 		expect(screen.getByText(/не найден/)).toBeInTheDocument();
-		expect(summaryRow('Итого')).toHaveTextContent('200');
+		expect(summaryRow(GOODS_TOTAL)).toHaveTextContent('200');
 	});
 
 	it('falls back to the empty state after the last line is removed', () => {
@@ -104,5 +117,21 @@ describe('CartClient', () => {
 		fireEvent.click(screen.getByRole('button', { name: /Удалить/ }));
 
 		expect(screen.getByRole('heading', { name: 'Корзина пока пуста' })).toBeInTheDocument();
+	});
+
+	it('never says the total covers delivery', () => {
+		seedCart(1);
+		renderCart();
+
+		expect(summaryRow('Доставка')).toHaveTextContent(businessConfig.totals.deliveryValue);
+		expect(screen.getByText(businessConfig.totals.explanation)).toBeInTheDocument();
+	});
+
+	it('blocks checkout while a line has no known price', () => {
+		seedCart(1, 'unpriced');
+		renderCart([unpriced]);
+
+		expect(summaryRow(GOODS_TOTAL)).toHaveTextContent(businessConfig.pricing.onRequestLabel);
+		expect(screen.getByRole('button', { name: 'Перейти к оформлению' })).toBeDisabled();
 	});
 });

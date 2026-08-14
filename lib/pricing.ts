@@ -1,19 +1,31 @@
 import { businessConfig } from './config';
 import type { CartState } from './cart/cartReducer';
 import type { Product, ProductVariant } from './domain';
-import { addMoney, isKnown, money, multiplyMoney, subtractMoney, type Money } from './money';
+import { addMoney, formatMoney, isKnown, money, multiplyMoney, subtractMoney, type Money } from './money';
 import { discountFor, evaluatePromo, type PromoEvaluation } from './promo';
 
-export type ResolvedPrice = { price: Money; isPlaceholder: boolean };
+/**
+ * 'known'      — реальная цена из товарных данных;
+ * 'demo'       — внутренний preview-режим (NEXT_PUBLIC_DEMO_PRICES);
+ * 'on-request' — цены нет, товар продаётся по запросу.
+ */
+export type PriceMode = 'known' | 'demo' | 'on-request';
 
-export function resolveUnitPrice(product: Product, variant: ProductVariant): ResolvedPrice {
-	if (isKnown(variant.price)) return { price: variant.price, isPlaceholder: false };
-	if (isKnown(product.price)) return { price: product.price, isPlaceholder: false };
-	if (businessConfig.pricing.usePlaceholderPrices) {
-		const placeholder = businessConfig.pricing.placeholderPriceList[product.id];
-		if (typeof placeholder === 'number') return { price: money(placeholder), isPlaceholder: true };
+export type ResolvedPrice = { price: Money; mode: PriceMode };
+
+export function resolveUnitPrice(product: Product, variant: ProductVariant | undefined): ResolvedPrice {
+	if (variant && isKnown(variant.price)) return { price: variant.price, mode: 'known' };
+	if (isKnown(product.price)) return { price: product.price, mode: 'known' };
+	if (businessConfig.pricing.demoPricesEnabled) {
+		const demo = businessConfig.pricing.demoPriceList[product.id];
+		if (typeof demo === 'number') return { price: money(demo), mode: 'demo' };
 	}
-	return { price: money(null), isPlaceholder: true };
+	return { price: money(null), mode: 'on-request' };
+}
+
+/** Сумма, которой мы не знаем, никогда не печатается как число: это «Цена по запросу». */
+export function formatPrice(value: Money): string {
+	return formatMoney(value, businessConfig.pricing.onRequestLabel);
 }
 
 export type CartLine = {
@@ -25,7 +37,7 @@ export type CartLine = {
 	quantity: number;
 	unitPrice: Money;
 	lineTotal: Money;
-	isPlaceholderPrice: boolean;
+	priceMode: PriceMode;
 };
 
 export type CartSummary = {
@@ -33,10 +45,12 @@ export type CartSummary = {
 	itemCount: number;
 	subtotal: Money;
 	discount: Money;
+	/** Только товары: доставка сюда не входит по решению lead'а. */
 	total: Money;
 	promo: PromoEvaluation;
 	pricingComplete: boolean;
-	hasPlaceholderPrices: boolean;
+	hasOnRequestLines: boolean;
+	hasDemoPrices: boolean;
 };
 
 export function summarizeCart(state: CartState, products: Product[], now: Date = new Date()): CartSummary {
@@ -47,7 +61,7 @@ export function summarizeCart(state: CartState, products: Product[], now: Date =
 		if (!product) continue;
 		const variant = product.variants.find((candidate) => candidate.id === item.variantId) ?? product.variants[0];
 		if (!variant) continue;
-		const { price, isPlaceholder } = resolveUnitPrice(product, variant);
+		const { price, mode } = resolveUnitPrice(product, variant);
 		lines.push({
 			productId: product.id,
 			variantId: variant.id,
@@ -57,7 +71,7 @@ export function summarizeCart(state: CartState, products: Product[], now: Date =
 			quantity: item.quantity,
 			unitPrice: price,
 			lineTotal: multiplyMoney(price, item.quantity),
-			isPlaceholderPrice: isPlaceholder,
+			priceMode: mode,
 		});
 	}
 
@@ -78,6 +92,7 @@ export function summarizeCart(state: CartState, products: Product[], now: Date =
 		total,
 		promo,
 		pricingComplete,
-		hasPlaceholderPrices: lines.some((line) => line.isPlaceholderPrice),
+		hasOnRequestLines: lines.some((line) => line.priceMode === 'on-request'),
+		hasDemoPrices: lines.some((line) => line.priceMode === 'demo'),
 	};
 }

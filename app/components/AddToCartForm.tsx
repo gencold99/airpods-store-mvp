@@ -7,6 +7,8 @@ import { analytics } from '@/lib/analytics';
 import { businessConfig } from '@/lib/config';
 import type { Product } from '@/lib/domain';
 
+const MAX = businessConfig.cart.maxQuantityPerLine;
+
 export default function AddToCartForm({ product }: { product: Product }) {
 	const { dispatch } = useCart();
 	const variantId = useId();
@@ -14,6 +16,16 @@ export default function AddToCartForm({ product }: { product: Product }) {
 	const [variant, setVariant] = useState(product.variants[0]?.id ?? 'standard');
 	const [quantity, setQuantity] = useState(1);
 	const [message, setMessage] = useState('');
+
+	function onQuantityChange(raw: string) {
+		const parsed = Number.parseInt(raw, 10);
+		// Пустое или мусорное значение не должно превращать количество в NaN.
+		if (!Number.isFinite(parsed)) {
+			setQuantity(1);
+			return;
+		}
+		setQuantity(Math.min(Math.max(parsed, 1), MAX));
+	}
 
 	function onSubmit(event: React.FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -41,9 +53,9 @@ export default function AddToCartForm({ product }: { product: Product }) {
 					type="number"
 					inputMode="numeric"
 					min={1}
-					max={businessConfig.cart.maxQuantityPerLine}
+					max={MAX}
 					value={quantity}
-					onChange={(event) => setQuantity(Number(event.target.value))}
+					onChange={(event) => onQuantityChange(event.target.value)}
 				/>
 			</div>
 			<button className="button primary" type="submit">

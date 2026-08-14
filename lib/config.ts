@@ -10,6 +10,14 @@ export type PromoRule = {
 	description: string;
 };
 
+export type TrustSignal = {
+	id: string;
+	title: string;
+	text: string;
+	/** 'confirmed' — обещание, которое магазин уже может держать; 'pending' — данных ещё нет. */
+	status: 'confirmed' | 'pending';
+};
+
 export const siteConfig = {
 	name: 'Bright Future',
 	baseUrl: process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bright-future.example',
@@ -17,19 +25,30 @@ export const siteConfig = {
 };
 
 /**
- * All commercial values stay in configuration.
- * Real prices are not known yet, so the price list below is an explicitly labelled
- * placeholder used only to make the purchase path testable. Any real price coming
- * from the product/variant record automatically wins over the placeholder.
+ * Все коммерческие значения живут в конфигурации.
+ *
+ * DECISION (lead, 14.08.2026):
+ * 1. Публичных placeholder-цен быть не должно. Пока реального прайса нет, товар
+ *    продаётся по запросу, а не с выдуманным числом.
+ * 2. Итог заказа = только товары. Доставка не входит в total, пока нет реальных тарифов,
+ *    и это должно быть явно сказано в интерфейсе.
  */
 export const businessConfig = {
 	currency: 'RUB' as const,
 	pricing: {
-		usePlaceholderPrices: true,
-		disclaimer:
-			'Значения цен — демонстрационные placeholder-данные для проверки расчётов. Финальные цены подключаются перед запуском.',
+		onRequestLabel: 'Цена по запросу',
+		onRequestAction: 'Уточнить цену',
+		onRequestNote:
+			'Цену и наличие подтверждает менеджер: оставьте заявку, и мы вернёмся с точной стоимостью.',
+		/**
+		 * Внутренний режим для проверки расчётов на preview-сборке. По умолчанию выключен,
+		 * поэтому в публичной сборке числа из demoPriceList появиться не могут.
+		 */
+		demoPricesEnabled: process.env.NEXT_PUBLIC_DEMO_PRICES === 'true',
+		demoDisclaimer:
+			'Включён внутренний режим демо-цен (NEXT_PUBLIC_DEMO_PRICES): суммы нужны только для проверки расчётов и не являются офертой.',
 		/** kopecks, keyed by product id */
-		placeholderPriceList: {
+		demoPriceList: {
 			'airpods-4': 1490000,
 			'airpods-pro': 2290000,
 			'airpods-max': 5490000,
@@ -37,6 +56,14 @@ export const businessConfig = {
 	},
 	cart: {
 		maxQuantityPerLine: 10,
+	},
+	totals: {
+		/** Доставка не входит в итог, пока её стоимость не подтверждена. */
+		includesDelivery: false,
+		goodsLabel: 'Итого за товары',
+		deliveryValue: 'Уточняется после подтверждения',
+		explanation:
+			'В итог входят только товары. Стоимость доставки по Уфе и России менеджер рассчитывает и подтверждает после оформления заказа — до отправки и до любых доплат.',
 	},
 	delivery: {
 		pricingStatus: 'pending' as const,
@@ -48,6 +75,33 @@ export const businessConfig = {
 		label: 'Гарантия',
 		description: 'Условия будут добавлены после подтверждения.',
 	},
+	/** Обещания магазина, а не характеристики товара: их можно показывать до подключения каталога. */
+	trust: [
+		{
+			id: 'original',
+			title: 'Только оригинальные AirPods',
+			text: 'Магазин работает с оригинальными устройствами Apple: подмены модели или комплектации не будет.',
+			status: 'confirmed',
+		},
+		{
+			id: 'payment',
+			title: 'Данные карты не сохраняются',
+			text: 'Реквизиты карты обрабатывает платёжный провайдер, магазин их не хранит. Сейчас подключён mock-провайдер: реальных списаний нет.',
+			status: 'confirmed',
+		},
+		{
+			id: 'guest',
+			title: 'Оформление без регистрации',
+			text: 'Заказ оформляется как гость: нужны только контакты для подтверждения и доставки.',
+			status: 'confirmed',
+		},
+		{
+			id: 'delivery',
+			title: 'Доставка по Уфе и России',
+			text: 'Способ доставки выбирается при оформлении. Стоимость и срок менеджер подтверждает после заказа.',
+			status: 'pending',
+		},
+	] as TrustSignal[],
 	payment: {
 		provider: 'mock' as const,
 		disclaimer:

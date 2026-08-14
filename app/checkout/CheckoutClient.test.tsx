@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { CartProvider } from '@/lib/cart/CartProvider';
+import { businessConfig } from '@/lib/config';
 import { money } from '@/lib/money';
 import type { Product } from '@/lib/domain';
 import CheckoutClient from './CheckoutClient';
@@ -25,6 +26,8 @@ const product: Product = {
 	tagline: 'Тестовая модель',
 	category: 'AirPods',
 	image: null,
+	gallery: [],
+	highlights: [],
 	price: money(20000),
 	oldPrice: money(null),
 	availability: 'available',
@@ -32,17 +35,26 @@ const product: Product = {
 	specs: {},
 };
 
-function seedCart(quantity: number): void {
+const unpriced: Product = {
+	...product,
+	id: 'unpriced',
+	slug: 'unpriced',
+	name: 'AirPods Future',
+	price: money(null),
+	variants: [{ id: 'standard', label: 'Стандартная версия', sku: 'SKU-unpriced', price: money(null), available: true }],
+};
+
+function seedCart(quantity: number, productId = 'first'): void {
 	window.localStorage.setItem(
 		CART_KEY,
-		JSON.stringify({ items: [{ productId: 'first', variantId: 'standard', quantity }], promoCode: null }),
+		JSON.stringify({ items: [{ productId, variantId: 'standard', quantity }], promoCode: null }),
 	);
 }
 
-function renderCheckout() {
+function renderCheckout(products: Product[] = [product]) {
 	return render(
 		<CartProvider>
-			<CheckoutClient products={[product]} />
+			<CheckoutClient products={products} />
 		</CartProvider>,
 	);
 }
@@ -91,6 +103,23 @@ describe('CheckoutClient', () => {
 		expect(window.sessionStorage.getItem(ORDER_KEY)).toBeNull();
 	});
 
+	it('never offers payment for a line without a known price', () => {
+		seedCart(1, 'unpriced');
+		renderCheckout([unpriced]);
+
+		expect(screen.getByRole('heading', { name: 'Итог пока нельзя посчитать' })).toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: /Оплатить/ })).not.toBeInTheDocument();
+	});
+
+	it('states that the shown total covers goods only', () => {
+		seedCart(1);
+		renderCheckout();
+
+		expect(screen.getByText(businessConfig.totals.goodsLabel)).toBeInTheDocument();
+		expect(screen.getByText(businessConfig.totals.deliveryValue)).toBeInTheDocument();
+		expect(screen.getByText(businessConfig.totals.explanation)).toBeInTheDocument();
+	});
+
 	it('shows an error and creates no order when the card is declined', async () => {
 		seedCart(2);
 		renderCheckout();
@@ -117,9 +146,15 @@ describe('CheckoutClient', () => {
 		const stored = window.sessionStorage.getItem(ORDER_KEY);
 		expect(stored).not.toBeNull();
 
-		const order = JSON.parse(stored ?? '{}') as { status?: string; paymentReference?: string; total?: { amount?: number } };
+		const order = JSON.parse(stored ?? '{}') as {
+			status?: string;
+			paymentReference?: string;
+			deliveryCostStatus?: string;
+			total?: { amount?: number };
+		};
 		expect(order.status).toBe('paid');
 		expect(order.paymentReference).toMatch(/^PAY-BF-/);
+		expect(order.deliveryCostStatus).toBe('pending');
 		expect(order.total?.amount).toBe(40000);
 		expect(screen.getByText(/Оплата подтверждена/)).toBeInTheDocument();
 	});

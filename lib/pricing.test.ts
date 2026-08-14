@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { summarizeCart } from './pricing';
+import { formatPrice, summarizeCart } from './pricing';
 import { money } from './money';
+import { businessConfig } from './config';
 import type { CartState } from './cart/cartReducer';
 import type { Product } from './domain';
 
@@ -14,6 +15,8 @@ function makeProduct(id: string, name: string, price: number | null): Product {
 		tagline: '',
 		category: 'AirPods',
 		image: null,
+		gallery: [],
+		highlights: [],
 		price: money(price),
 		oldPrice: money(null),
 		availability: 'available',
@@ -30,6 +33,13 @@ const unpriced = makeProduct('unpriced', 'AirPods Future', null);
 function cart(items: CartState['items'], promoCode: string | null = null): CartState {
 	return { items, promoCode };
 }
+
+describe('formatPrice', () => {
+	it('renders an unknown amount as a price on request instead of a number', () => {
+		expect(formatPrice(money(null))).toBe(businessConfig.pricing.onRequestLabel);
+		expect(formatPrice(money(149000))).toMatch(/149/);
+	});
+});
 
 describe('summarizeCart', () => {
 	it('multiplies unit price by quantity and totals every line', () => {
@@ -91,7 +101,8 @@ describe('summarizeCart', () => {
 		expect(summary.pricingComplete).toBe(false);
 		expect(summary.subtotal.amount).toBeNull();
 		expect(summary.total.amount).toBeNull();
-		expect(summary.hasPlaceholderPrices).toBe(true);
+		expect(summary.hasOnRequestLines).toBe(true);
+		expect(summary.lines[0].priceMode).toBe('on-request');
 	});
 
 	it('drops cart lines whose product no longer exists', () => {

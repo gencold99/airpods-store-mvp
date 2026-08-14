@@ -1,6 +1,6 @@
 import type { Product } from '../domain';
 import { isKnown, type Money } from '../money';
-import { resolveUnitPrice } from '../pricing';
+import { resolveUnitPrice, type PriceMode } from '../pricing';
 
 export const SORT_KEYS = ['recommended', 'price-asc', 'price-desc', 'name-asc'] as const;
 export type SortKey = (typeof SORT_KEYS)[number];
@@ -65,21 +65,22 @@ export function listCategories(products: Product[]): string[] {
 export type CatalogItem = {
 	product: Product;
 	price: Money;
-	isPlaceholderPrice: boolean;
+	priceMode: PriceMode;
 	inStock: boolean;
+	/** Купить можно только то, у чего есть и наличие, и известная цена. */
+	purchasable: boolean;
 };
 
 function toCatalogItem(product: Product): CatalogItem {
-	const variant = product.variants[0];
-	const resolved = variant
-		? resolveUnitPrice(product, variant)
-		: { price: product.price, isPlaceholder: !isKnown(product.price) };
+	const resolved = resolveUnitPrice(product, product.variants[0]);
+	const inStock = product.availability === 'available' && product.variants.some((item) => item.available);
 
 	return {
 		product,
 		price: resolved.price,
-		isPlaceholderPrice: resolved.isPlaceholder,
-		inStock: product.availability === 'available' && product.variants.some((item) => item.available),
+		priceMode: resolved.mode,
+		inStock,
+		purchasable: inStock && resolved.mode !== 'on-request',
 	};
 }
 

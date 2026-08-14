@@ -19,6 +19,8 @@ function makeProduct(input: {
 		tagline: input.tagline ?? '',
 		category: input.category,
 		image: null,
+		gallery: [],
+		highlights: [],
 		price: money(input.price),
 		oldPrice: money(null),
 		availability: available ? 'available' : 'unavailable',
@@ -101,6 +103,17 @@ describe('applyCatalogQuery', () => {
 	it('sorts by name when asked', () => {
 		const sorted = applyCatalogQuery(catalog, parseCatalogQuery({ sort: 'name-asc' }));
 		expect(sorted.map((item) => item.product.name)).toEqual(['Buds Future', 'Buds Lite', 'Buds Max', 'Buds Pro']);
+	});
+
+	it('marks a product without a price as not purchasable', () => {
+		const items = applyCatalogQuery(catalog, parseCatalogQuery());
+		const withoutPrice = items.find((item) => item.product.id === 'unpriced');
+		const outOfStock = items.find((item) => item.product.id === 'expensive');
+
+		expect(withoutPrice?.priceMode).toBe('on-request');
+		expect(withoutPrice?.purchasable).toBe(false);
+		expect(outOfStock?.purchasable).toBe(false);
+		expect(items.find((item) => item.product.id === 'cheap')?.purchasable).toBe(true);
 	});
 });
 

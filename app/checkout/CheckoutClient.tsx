@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useCart } from '@/lib/cart/CartProvider';
-import { summarizeCart } from '@/lib/pricing';
+import { formatPrice, summarizeCart } from '@/lib/pricing';
 import { formatMoney, isKnown } from '@/lib/money';
 import { businessConfig } from '@/lib/config';
 import { deliveryProvider } from '@/lib/delivery';
@@ -170,8 +170,10 @@ export default function CheckoutClient({ products }: { products: Product[] }) {
 			promoCode: summary.promo.status === 'valid' ? summary.promo.code : null,
 			deliveryOptionId: values.delivery,
 			deliveryLabel: deliveryOption?.label ?? 'Доставка уточняется',
+			// Снимок статуса на момент заказа: подтверждение не должно врать даже после смены конфигурации.
+			deliveryCostStatus: businessConfig.delivery.pricingStatus === 'pending' ? 'pending' : 'confirmed',
 			paymentReference: result.reference,
-			pricingIsPlaceholder: summary.hasPlaceholderPrices,
+			pricingIsDemo: summary.hasDemoPrices,
 		});
 
 		if (!order.ok) {
@@ -216,6 +218,22 @@ export default function CheckoutClient({ products }: { products: Product[] }) {
 				<p className="muted">Корзина пуста, поэтому оплата недоступна.</p>
 				<Link className="button primary" href="/shop">
 					Перейти в каталог
+				</Link>
+			</div>
+		);
+	}
+
+	// Нет цены — нет суммы. Мы не открываем оплату на числе, которого не знаем.
+	if (!summary.pricingComplete) {
+		return (
+			<div className="card">
+				<h2>Итог пока нельзя посчитать</h2>
+				<p className="status warn">
+					В корзине есть позиции с ценой по запросу, поэтому оплата недоступна: показывать сумму, которой мы не знаем, нельзя.
+				</p>
+				<p className="muted">{businessConfig.pricing.onRequestNote}</p>
+				<Link className="button primary" href="/cart">
+					Вернуться в корзину
 				</Link>
 			</div>
 		);
@@ -280,7 +298,11 @@ export default function CheckoutClient({ products }: { products: Product[] }) {
 				<div className="hero-actions">
 					<button className="button accent" type="submit" disabled={busy} aria-busy={busy}>
 						{busy ? <span className="spinner" aria-hidden="true" /> : null}
-						{busy ? 'Оплачиваем…' : payment.status === 'failed' || payment.status === 'cancelled' ? 'Повторить оплату' : `Оплатить ${formatMoney(summary.total)}`}
+						{busy
+							? 'Оплачиваем…'
+							: payment.status === 'failed' || payment.status === 'cancelled'
+								? 'Повторить оплату'
+								: `Оплатить товары: ${formatPrice(summary.total)}`}
 					</button>
 					{busy ? (
 						<button
@@ -313,13 +335,13 @@ export default function CheckoutClient({ products }: { products: Product[] }) {
 									{line.variantLabel}
 								</span>
 							</span>
-							<span>{formatMoney(line.lineTotal)}</span>
+							<span>{formatPrice(line.lineTotal)}</span>
 						</li>
 					))}
 				</ul>
 				<div className="summary-row">
-					<span>Подытог</span>
-					<span>{formatMoney(summary.subtotal)}</span>
+					<span>Товары ({summary.itemCount})</span>
+					<span>{formatPrice(summary.subtotal)}</span>
 				</div>
 				<div className="summary-row">
 					<span>Скидка{summary.promo.status === 'valid' ? ` (${summary.promo.code})` : ''}</span>
@@ -327,16 +349,34 @@ export default function CheckoutClient({ products }: { products: Product[] }) {
 				</div>
 				<div className="summary-row">
 					<span>Доставка</span>
-					<span>Уточняется</span>
+					<span>{businessConfig.totals.deliveryValue}</span>
 				</div>
+				{/* Не «К оплате»: доставка ещё не посчитана, поэтому итог честно назван итогом за товары. */}
 				<div className="summary-row total">
-					<span>К оплате</span>
-					<span>{formatMoney(summary.total)}</span>
+					<span>{businessConfig.totals.goodsLabel}</span>
+					<span>{formatPrice(summary.total)}</span>
 				</div>
 				<p className="muted" style={{ fontSize: 13 }}>
-					{businessConfig.delivery.note}
+					{businessConfig.totals.explanation}
 				</p>
-				{summary.hasPlaceholderPrices ? <p className="status warn">{businessConfig.pricing.disclaimer}</p> : null}
+				{summary.hasDemoPrices ? <p className="status warn">{businessConfig.pricing.demoDisclaimer}</p> : null}
+
+				<h3>Что будет после оплаты</h3>
+				<ol className="next-steps">
+					<li>Заказ фиксируется с номером и статусом «оплачено».</li>
+					<li>Менеджер связывается по телефону и подтверждает стоимость и срок доставки.</li>
+					<li>Отправка — после согласования доставки.</li>
+				</ol>
+
+				<h3>Почему можно доверять</h3>
+				<ul className="reassurance">
+					{businessConfig.trust.map((signal) => (
+						<li key={signal.id}>
+							<strong>{signal.title}</strong>
+							<span className="muted"> {signal.text}</span>
+						</li>
+					))}
+				</ul>
 			</aside>
 		</div>
 	);

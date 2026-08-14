@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useCart } from '@/lib/cart/CartProvider';
-import { summarizeCart } from '@/lib/pricing';
+import { formatPrice, summarizeCart } from '@/lib/pricing';
 import { formatMoney } from '@/lib/money';
 import { businessConfig } from '@/lib/config';
 import { analytics } from '@/lib/analytics';
@@ -58,7 +58,7 @@ export default function CartClient({ products }: { products: Product[] }) {
 									<strong>{line.name}</strong>
 								</Link>
 								<p className="muted" style={{ margin: '4px 0' }}>
-									{line.variantLabel} · {formatMoney(line.unitPrice)} за шт.
+									{line.variantLabel} · {formatPrice(line.unitPrice)} за шт.
 								</p>
 								<div className="qty">
 									<label className="visually-hidden" htmlFor={`qty-${line.productId}-${line.variantId}`}>
@@ -89,7 +89,7 @@ export default function CartClient({ products }: { products: Product[] }) {
 									</button>
 								</div>
 							</div>
-							<strong>{formatMoney(line.lineTotal)}</strong>
+							<strong>{formatPrice(line.lineTotal)}</strong>
 						</li>
 					))}
 				</ul>
@@ -133,7 +133,7 @@ export default function CartClient({ products }: { products: Product[] }) {
 				<div style={{ height: 12 }} />
 				<div className="summary-row">
 					<span>Товары ({summary.itemCount})</span>
-					<span>{formatMoney(summary.subtotal)}</span>
+					<span>{formatPrice(summary.subtotal)}</span>
 				</div>
 				<div className="summary-row">
 					<span>Скидка</span>
@@ -141,23 +141,33 @@ export default function CartClient({ products }: { products: Product[] }) {
 				</div>
 				<div className="summary-row">
 					<span>Доставка</span>
-					<span>Уточняется</span>
+					<span>{businessConfig.totals.deliveryValue}</span>
 				</div>
+				{/* Итог намеренно назван «за товары»: доставка в него не входит. */}
 				<div className="summary-row total">
-					<span>Итого</span>
-					<span>{formatMoney(summary.total)}</span>
+					<span>{businessConfig.totals.goodsLabel}</span>
+					<span>{formatPrice(summary.total)}</span>
 				</div>
 
 				<p className="muted" style={{ fontSize: 13 }}>
-					{businessConfig.delivery.note}
+					{businessConfig.totals.explanation}
 				</p>
-				{summary.hasPlaceholderPrices ? (
-					<p className="status warn">{businessConfig.pricing.disclaimer}</p>
-				) : null}
+				{summary.hasDemoPrices ? <p className="status warn">{businessConfig.pricing.demoDisclaimer}</p> : null}
 
-				<Link className="button accent" href="/checkout">
-					Перейти к оформлению
-				</Link>
+				{summary.pricingComplete ? (
+					<Link className="button accent" href="/checkout">
+						Перейти к оформлению
+					</Link>
+				) : (
+					<>
+						<p className="status warn">
+							В корзине есть позиции с ценой по запросу, поэтому итог посчитать нельзя и оформление недоступно.
+						</p>
+						<button className="button accent" type="button" disabled>
+							Перейти к оформлению
+						</button>
+					</>
+				)}
 				<div style={{ height: 10 }} />
 				<Link className="button secondary" href="/shop">
 					Продолжить покупки
