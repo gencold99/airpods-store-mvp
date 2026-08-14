@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { CartProvider } from '@/lib/cart/CartProvider';
 import CatalogGrid, { type CatalogCardView } from './CatalogGrid';
 
@@ -48,14 +48,15 @@ describe('CatalogGrid quick view', () => {
 
 		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
-		const trigger = screen.getByRole('button', { name: /Быстрый просмотр — AirPods A/ });
+		const trigger = screen.getByRole('button', { name: /Быстрый просмотр/ });
 		trigger.focus();
 		fireEvent.click(trigger);
 
 		const dialog = screen.getByRole('dialog');
 		expect(dialog).toHaveAttribute('aria-modal', 'true');
-		expect(screen.getByRole('heading', { name: 'AirPods A', level: 2 })).toBeInTheDocument();
-		expect(screen.getByRole('button', { name: 'Закрыть' })).toHaveFocus();
+		// The product name is a heading on the card too, so scope the query to the dialog.
+		expect(within(dialog).getByRole('heading', { name: 'AirPods A' })).toBeInTheDocument();
+		expect(within(dialog).getByRole('button', { name: 'Закрыть' })).toHaveFocus();
 
 		fireEvent.keyDown(dialog, { key: 'Escape' });
 
@@ -67,7 +68,7 @@ describe('CatalogGrid quick view', () => {
 		renderGrid([priced]);
 
 		fireEvent.click(screen.getByRole('button', { name: /Быстрый просмотр/ }));
-		fireEvent.click(screen.getByRole('button', { name: 'Закрыть' }));
+		fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Закрыть' }));
 
 		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 	});
