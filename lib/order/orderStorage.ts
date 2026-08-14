@@ -44,6 +44,13 @@ export type HandoffReadResult =
 	| { ok: true; handoff: OrderHandoff }
 	| { ok: false; reason: HandoffRejection };
 
+/**
+ * Позиция, прошедшая парсер: обе суммы уже доказано известны.
+ * Без этого типа доказательство теряется на границе OrderLine, где Money допускает null,
+ * и проверка целостности итога перестаёт компилироваться (TS18047).
+ */
+type ParsedOrderLine = OrderLine & { unitPrice: KnownMoney; lineTotal: KnownMoney };
+
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -80,7 +87,7 @@ function parseCustomer(value: unknown): OrderCustomer | null {
 	return { email: email.trim(), name: name.trim(), phone: phone.trim(), city: city.trim() };
 }
 
-function parseLine(value: unknown): OrderLine | null {
+function parseLine(value: unknown): ParsedOrderLine | null {
 	if (!isRecord(value)) return null;
 	const { productId, variantId, name, variantLabel, quantity } = value;
 	if (!isNonEmptyString(productId) || !isNonEmptyString(variantId)) return null;
@@ -118,7 +125,7 @@ export function parseOrder(value: unknown): Order | null {
 
 	const rawLines = value.lines;
 	if (!Array.isArray(rawLines) || rawLines.length === 0 || rawLines.length > MAX_LINES) return null;
-	const lines: OrderLine[] = [];
+	const lines: ParsedOrderLine[] = [];
 	for (const rawLine of rawLines) {
 		const line = parseLine(rawLine);
 		if (!line) return null;
