@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { CartProvider } from '@/lib/cart/CartProvider';
 import { businessConfig } from '@/lib/config';
 import { money } from '@/lib/money';
+import { HANDOFF_VERSION, ORDER_HANDOFF_KEY } from '@/lib/order/orderStorage';
 import type { Product } from '@/lib/domain';
 import CheckoutClient from './CheckoutClient';
 
@@ -13,7 +14,6 @@ vi.mock('next/navigation', () => ({
 }));
 
 const CART_KEY = 'bright-future.cart.v1';
-const ORDER_KEY = 'bright-future.last-order.v1';
 
 const SUCCESS_CARD = '4111 1111 1111 1111';
 const DECLINED_CARD = '4000 0000 0000 0002';
@@ -100,7 +100,7 @@ describe('CheckoutClient', () => {
 
 		expect(screen.getByText('Укажите корректный email для подтверждения заказа.')).toBeInTheDocument();
 		expect(push).not.toHaveBeenCalled();
-		expect(window.sessionStorage.getItem(ORDER_KEY)).toBeNull();
+		expect(window.sessionStorage.getItem(ORDER_HANDOFF_KEY)).toBeNull();
 	});
 
 	it('never offers payment for a line without a known price', () => {
@@ -130,11 +130,11 @@ describe('CheckoutClient', () => {
 		await waitFor(() => expect(screen.getByText(/Оплата не прошла/)).toBeInTheDocument(), { timeout: 5000 });
 
 		expect(push).not.toHaveBeenCalled();
-		expect(window.sessionStorage.getItem(ORDER_KEY)).toBeNull();
+		expect(window.sessionStorage.getItem(ORDER_HANDOFF_KEY)).toBeNull();
 		expect(screen.queryByText(/Оплата подтверждена/)).not.toBeInTheDocument();
 	});
 
-	it('stores a paid order and only then moves to the confirmation', async () => {
+	it('hands off a paid order inside a tokenized envelope and only then moves to the confirmation', async () => {
 		seedCart(2);
 		renderCheckout();
 		fillContactsAndCard(SUCCESS_CARD);
@@ -143,19 +143,33 @@ describe('CheckoutClient', () => {
 
 		await waitFor(() => expect(push).toHaveBeenCalledWith('/order/confirmation'), { timeout: 5000 });
 
-		const stored = window.sessionStorage.getItem(ORDER_KEY);
+		const stored = window.sessionStorage.getItem(ORDER_HANDOFF_KEY);
 		expect(stored).not.toBeNull();
 
-		const order = JSON.parse(stored ?? '{}') as {
-			status?: string;
-			paymentReference?: string;
-			deliveryCostStatus?: string;
-			total?: { amount?: number };
+		const envelope = JSON.parse(stored ?? '{}') as {
+			version?: number;
+			token?: string;
+			orderId?: string;
+			issuedAt?: number;
+			expiresAt?: number;
+			order?: {
+				id?: string;
+				status?: string;
+				paymentReference?: string;
+				deliveryCostStatus?: string;
+				total?: { amount?: number };
+			};
 		};
-		expect(order.status).toBe('paid');
-		expect(order.paymentReference).toMatch(/^PAY-BF-/);
-		expect(order.deliveryCostStatus).toBe('pending');
-		expect(order.total?.amount).toBe(40000);
+
+		expect(envelope.version).toBe(HANDOFF_VERSION);
+		expect(envelope.orderId).toBe(envelope.order?.id);
+		expect(envelope.token?.startsWith(`${envelope.orderId ?? ''}.`)).toBe(true);
+		expect((envelope.token ?? '').split('.')[1]?.length).toBeGreaterThanOrEqual(16);
+		expect(envelope.expiresAt ?? 0).toBeGreaterThan(envelope.issuedAt ?? 0);
+		expect(envelope.order?.status).toBe('paid');
+		expect(envelope.order?.paymentReference).toMatch(/^PAY-BF-/);
+		expect(envelope.order?.deliveryCostStatus).toBe('pending');
+		expect(envelope.order?.total?.amount).toBe(40000);
 		expect(screen.getByText(/Оплата подтверждена/)).toBeInTheDocument();
 	});
 });
