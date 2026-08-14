@@ -5,7 +5,6 @@ import { formatPrice, resolveUnitPrice } from '@/lib/pricing';
 
 export default async function Home() {
 	const result = await productRepository.list();
-	const products = result.ok ? result.data : [];
 
 	return (
 		<main id="main" tabIndex={-1}>
@@ -29,29 +28,52 @@ export default async function Home() {
 						<span>✓ Оформление без регистрации</span>
 					</div>
 				</div>
-				<div className="hero-art" role="img" aria-label="Слот изображения продукта" />
+				<div className="hero-art" role="img" aria-label="Слот изображения продукта: фотография будет добавлена после верификации данных" />
 			</section>
 
-			<section className="section container">
+			<section className="section container" aria-labelledby="featured-heading">
 				<div className="eyebrow">Featured</div>
-				<h2>Выберите свой ритм</h2>
-				<div className="grid">
-					{products.map((product) => {
-						const { price } = resolveUnitPrice(product, product.variants[0]);
-						return (
-							<Link className="card product-card" href={`/products/${product.slug}`} key={product.id}>
-								<div className="product-image" aria-hidden="true">
-									{product.name.split(' ')[1]}
-								</div>
-								<div>
-									<h3>{product.name}</h3>
-									<p className="muted">{product.tagline}</p>
-									<span className="price">{formatPrice(price)}</span>
-								</div>
-							</Link>
-						);
-					})}
-				</div>
+				<h2 id="featured-heading">Выберите свой ритм</h2>
+				{!result.ok ? (
+					<div className="card status error" role="alert">
+						<p>Не удалось загрузить подборку товаров.</p>
+						<p className="muted">Попробуйте ещё раз или откройте каталог — там доступно отдельное состояние загрузки.</p>
+						<a className="button secondary" href="/">
+							Повторить загрузку
+						</a>
+					</div>
+				) : result.data.length === 0 ? (
+					<div className="card">
+						<h3>Подборка пока готовится</h3>
+						<p className="muted">Товары появятся после верификации ассортимента. Уже можно перейти в каталог и проверить доступные позиции.</p>
+						<Link className="button secondary" href="/shop">
+							Открыть каталог
+						</Link>
+					</div>
+				) : (
+					<div className="grid">
+						{result.data.map((product) => {
+							const { price } = resolveUnitPrice(product, product.variants[0]);
+							return (
+								<Link className="card product-card" href={`/products/${product.slug}`} key={product.id}>
+									<div
+										className="product-image"
+										role="img"
+										aria-label={`${product.name}: слот изображения, фотография будет добавлена после верификации данных`}
+									>
+										<span aria-hidden="true">{product.name.split(' ')[1]}</span>
+										<span className="visually-hidden">Изображение товара уточняется</span>
+									</div>
+									<div>
+										<h3>{product.name}</h3>
+										<p className="muted">{product.tagline}</p>
+										<span className="price">{formatPrice(price)}</span>
+									</div>
+								</Link>
+							);
+						})}
+					</div>
+				)}
 			</section>
 
 			<section id="how" className="section container">
