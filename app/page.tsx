@@ -32,7 +32,12 @@ export default async function Home() {
 						<span>✓ Оформление без регистрации</span>
 					</div>
 				</div>
-				<div className="hero-art" role="img" aria-label="Слот изображения продукта" />
+				{/* Слот называется слотом: фотографии ещё нет, и обещать её содержание мы не можем. */}
+				<div
+					className="hero-art"
+					role="img"
+					aria-label="Слот изображения продукта: фотография будет добавлена вместе с товарными данными"
+				/>
 			</section>
 
 			<section className="section container">
@@ -58,8 +63,13 @@ export default async function Home() {
 							const { price } = resolveUnitPrice(product, product.variants[0]);
 							return (
 								<Link className="card product-card" href={`/products/${product.slug}`} key={product.id}>
-									<div className="product-image" aria-hidden="true">
-										{product.name.split(' ')[1]}
+									{/* Был aria-hidden: скринридер не сообщал ничего там, где глазом виден пустой слот. */}
+									<div
+										className="product-image"
+										role="img"
+										aria-label={`${product.name}: слот изображения, фотография уточняется`}
+									>
+										<span aria-hidden="true">{product.name.split(' ')[1]}</span>
 									</div>
 									<div>
 										<h3>{product.name}</h3>
