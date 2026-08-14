@@ -13,8 +13,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - run: npm install
+      # No cache: the repository intentionally has no committed lockfile yet.
+      # setup-node with `cache: npm` fails hard when no lockfile is present.
+      - run: npm install --no-audit --no-fund
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
